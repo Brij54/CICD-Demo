@@ -1,41 +1,37 @@
+import { useState, useEffect } from "react";
 
-import { useEffect, useState } from 'react';
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
 
 const usePage11Hook = () => {
-
-  const [data, setData] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await fetch('http://localhost:8000/api/flightlist1', {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-          },
-        });
-
+        const response = await fetch("http://localhost:5000/api/products");
         if (!response.ok) {
-          throw new Error("Failed to fetch data");
+          throw new Error(`HTTP error! Status: ${response.status}`);
         }
-
-        const result = await response.json();
+        const result: Product[] = await response.json();
         setData(result);
-        //console.log(result)
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      } catch (err) {
+        setError("Failed to fetch data. Please check your API.");
+        console.error("Fetch error:", err);
       } finally {
-        setIsLoading(false);
-    }
+        setLoading(false);
+      }
     };
 
     fetchData();
   }, []);
 
-  return {
-    data, isLoading
-  };
+  return { data, loading, error };
 };
 
 export default usePage11Hook;

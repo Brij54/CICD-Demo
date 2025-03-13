@@ -1,30 +1,41 @@
+import { useState, useEffect } from "react";
 
-import { useEffect, useState } from 'react';
-import Page1Model from '../models/Page1Model';
+interface Product {
+  id: number;
+  name: string;
+  price: number;
+}
 
-const usePage1Hook = () => {
+interface HookReturnType {
+  data: Product[];
+  loading: boolean;
+  error: string | null;
+}
 
-  const [data, setData] = useState([]);
+const usePage1Hook = (): HookReturnType => {
+  const [data, setData] = useState<Product[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchData = async () => {
-      const data1 = await fetch('http://localhost:8000/api/flightlist1', {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json"
-        }
-      }).then(response => response.json())
-
-      const modelInstances = data1.map((item: any) => new Page1Model(item));
-      setData(modelInstances);
-    }
-    
-    fetchData();
+    // Simulating API call
+    setTimeout(() => {
+      try {
+        // Sample data
+        const sampleData: Product[] = [
+          { id: 1, name: "Product A", price: 100 },
+          { id: 2, name: "Product B", price: 200 },
+        ];
+        setData(sampleData);
+      } catch (err) {
+        setError("Failed to fetch data");
+      } finally {
+        setLoading(false);
+      }
+    }, 1000);
   }, []);
-  
-  return {
-    data,
-  }
+
+  return { data, loading, error }; // ✅ Now returns `loading` and `error`
 };
 
 export default usePage1Hook;

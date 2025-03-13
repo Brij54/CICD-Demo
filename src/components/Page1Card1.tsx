@@ -1,18 +1,20 @@
+import React from "react";
 
-              import React from 'react';
-              import "./Page1.css";
+interface Props {
+  product: {
+    id: number;
+    name: string;
+    price: number;
+  };
+}
 
-              interface Page1Card1Props {
-                product: any;
-              }
+const Page1Card1: React.FC<Props> = ({ product }) => {
+  return (
+    <div className="card">
+      <h3>{product.name}</h3>
+      <p>Price: ${product.price}</p>
+    </div>
+  );
+};
 
-              const Page1Card1: React.FC<Page1Card1Props> = ({ product }) => {
-                return (
-                  <>
-                  <div className="ag-theme-quartz-dark border border-2" id="id-7"></div>
-                  </>
-                );
-              }
-
-              export default Page1Card1;
-            
+export default Page1Card1;

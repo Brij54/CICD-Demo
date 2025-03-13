@@ -1,40 +1,31 @@
+import React from "react";
+import { ColDef } from "ag-grid-community";
+import { AgGridReact } from "ag-grid-react";
+import "ag-grid-community/styles/ag-grid.css";
+import "ag-grid-community/styles/ag-theme-alpine.css";
+import usePage11Hook from "../hooks/usePage11Hook";
 
-import React from 'react';
-import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
-import { AllCommunityModule, ModuleRegistry } from 'ag-grid-community';
-import usePage11Hook from '../hooks/usePage11Hook';
+const Page11Table: React.FC = () => {
+  const { data, loading, error } = usePage11Hook(); // ✅ Use 'loading' instead of 'isLoading'
 
-ModuleRegistry.registerModules([AllCommunityModule]);
+  const colData: ColDef[] = React.useMemo(
+    () => [
+      { headerName: "ID", field: "id", sortable: true, filter: true },
+      { headerName: "Name", field: "name", sortable: true, filter: true },
+      { headerName: "Price", field: "price", sortable: true, filter: true }
+    ],
+    []
+  );
 
-export default function Page11Table() {
-    const { data, isLoading } = usePage11Hook();
+  return (
+    <div className="ag-theme-alpine" style={{ height: 400, width: "100%" }}>
+      {loading && <p>Loading data...</p>}
+      {error && <p className="error">Error: {error}</p>}
+      {!loading && !error && (
+        <AgGridReact rowData={data} columnDefs={colData} pagination={true} />
+      )}
+    </div>
+  );
+};
 
-    const colData: ColDef[] = React.useMemo(() => {
-        if (!data || data.length === 0) return [];
-        return Object.keys(data[0]).map(key => ({
-            field: key,
-            sortable: true,
-            filter: true,
-        }));
-    }, [data]);
-
-    if (isLoading) {
-        return <div>Loading...</div>;
-    }
-
-    if (!data || data.length === 0) {
-        return <div>No data available</div>;
-    }
-
-    return (
-      <AgGridReact
-          rowData={data}
-          columnDefs={colData}
-          pagination={true}
-          paginationPageSize={10}
-          paginationPageSizeSelector={[20]}
-          rowSelection="multiple"
-      />
-    )
-  }
+export default Page11Table;
