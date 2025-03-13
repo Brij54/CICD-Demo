@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useLocation } from "react-router-dom";
 
 export type ResourceMetaData = {
@@ -8,67 +8,16 @@ export type ResourceMetaData = {
 
 const Edit = () => {
   const location = useLocation();
-  const id = location.state.id;
-  const editedData = location.state.editedData;
-  const currUrl = location.state.currUrl;
-  const resName = location.state.resName;
-  const apiUrl = location.state.apiUrl;
-  const metadataUrl = location.state.metadataUrl;
-  const BaseUrl = location.state.BaseUrl;
+  const { id, editedData, currUrl, resName, apiUrl, metadataUrl, BaseUrl } = location.state;
 
   const [editedRecord, setEditedRecord] = useState<any>(editedData || {});
   const [fields, setFields] = useState<any[]>([]);
-  const [resMetaData, setResMetaData] = useState<ResourceMetaData[]>([]);
-  const [requiredFields, setRequiredFields] = useState<string[]>([]);
-  const [showToast, setShowToast] = useState<boolean>(false);
   const [foreignKeyData, setForeignKeyData] = useState<Record<string, any[]>>({});
   const [searchQueries, setSearchQueries] = useState<Record<string, string>>({});
+  const [showToast, setShowToast] = useState<boolean>(false);
   const regex = /^(g_|archived|extra_data)/;
 
-
-  useEffect(() => {
-    const fetchResMetaData = async () => {
-      const fetchedResources = new Set();
-      try {
-        const response = await fetch(
-          metadataUrl,
-          {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-          }
-        );
-
-        if (response.ok) {
-          const metaData = await response.json();
-          setResMetaData(metaData);
-
-          const fields = metaData[0]?.fieldValues || [];
-          setFields(fields);
-
-          const required = fields
-            .filter((field: any) => !regex.test(field.name))
-            .map((field: any) => field.name);
-          setRequiredFields(required);
-
-          const foreignFields = fields.filter((field: any) => field.foreign);
-          for (const field of foreignFields) {
-            if (!fetchedResources.has(field.foreign)) {
-              fetchedResources.add(field.foreign);
-              await fetchForeignData(field.foreign, field.name, field.foreign_field);
-            }
-          }
-        } else {
-          console.error("Failed to fetch metadata:", response.statusText);
-        }
-      } catch (error) {
-        console.error("Error fetching metadata:", error);
-      }
-    };
-
-    fetchResMetaData();
-  }, [resName]);
-
-  const fetchForeignData = async (foreignResource: string, fieldName: string, foreignField: string) => {
+  const fetchForeignData = useCallback(async (foreignResource: string, fieldName: string, foreignField: string) => {
     try {
       const params = new URLSearchParams();
       const ssid: any = sessionStorage.getItem("key");
@@ -95,8 +44,37 @@ const Edit = () => {
     } catch (error) {
       console.error(`Error fetching foreign data for ${fieldName}:`, error);
     }
-  };
+  }, [BaseUrl]);
 
+  useEffect(() => {
+    const fetchResMetaData = async () => {
+      const fetchedResources = new Set();
+      try {
+        const response = await fetch(metadataUrl, {
+          method: "GET",
+          headers: { "Content-Type": "application/json" },
+        });
+
+        if (response.ok) {
+          const metaData = await response.json();
+          setFields(metaData[0]?.fieldValues || []);
+
+          const foreignFields = metaData[0]?.fieldValues.filter((field: any) => field.foreign);
+          for (const field of foreignFields) {
+            if (!fetchedResources.has(field.foreign)) {
+              fetchedResources.add(field.foreign);
+              await fetchForeignData(field.foreign, field.name, field.foreign_field);
+            }
+          }
+        } else {
+          console.error("Failed to fetch metadata:", response.statusText);
+        }
+      } catch (error) {
+        console.error("Error fetching metadata:", error);
+      }
+    };
+    fetchResMetaData();
+  }, [metadataUrl, fetchForeignData]);
 
   const handleEdit = (id: any, field: string, value: string) => {
     setEditedRecord((prevData: any) => ({
@@ -108,11 +86,9 @@ const Edit = () => {
     }));
   };
 
-
   const handleSearchChange = (fieldName: string, value: string) => {
     setSearchQueries((prev) => ({ ...prev, [fieldName]: value }));
   };
-
 
   const handleUpdate = async (id: any) => {
     if (!editedRecord[id]) return;
@@ -130,16 +106,11 @@ const Edit = () => {
     params.append("session_id", ssid);
 
     try {
-      const response = await fetch(
-        apiUrl,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/x-www-form-urlencoded",
-          },
-          body: params.toString(),
-        }
-      );
+      const response = await fetch(apiUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      });
 
       if (response.ok) {
         setShowToast(true);
@@ -157,71 +128,17 @@ const Edit = () => {
     <div className="container mt-4">
       {fields.map((field, index) => {
         if (field.name !== "id" && !regex.test(field.name)) {
-          if (field.foreign) {
-            const options = foreignKeyData[field.foreign] || [];
-            const filteredOptions = options.filter((option) =>
-              option[field.foreign_field]
-                .toLowerCase()
-                .includes((searchQueries[field.name] || "").toLowerCase())
-            );
-
-            return (
-              <div key={index} className="dropdown d-flex flex-column">
-                <label>
-                  {field.required && <span style={{ color: "red" }}>*</span>} {field.name}
-                </label>
-                <button
-                  className="btn btn-secondary dropdown-toggle"
-                  type="button"
-                  id={`dropdownMenu-${field.name}`}
-                  data-bs-toggle="dropdown"
-                  aria-haspopup="true"
-                  aria-expanded="false"
-                >
-                  {editedRecord[id]?.[field.name] ||
-                    `Select ${field.name}`}
-                </button>
-                <div className="dropdown-menu">
-                  <input
-                    type="text"
-                    className="form-control mb-2"
-                    placeholder={`Search ${field.name}`}
-                    value={searchQueries[field.name] || ""}
-                    onChange={(e) => handleSearchChange(field.name, e.target.value)}
-                  />
-                  {filteredOptions.length > 0 ? (
-                    filteredOptions.map((option, i) => (
-                      <button
-                        key={i}
-                        className="dropdown-item"
-                        onClick={() =>
-                          handleEdit(id, field.name, option[field.foreign_field])
-                        }
-                      >
-                        {option[field.foreign_field]}
-                      </button>
-                    ))
-                  ) : (
-                    <span className="dropdown-item text-muted">No options available</span>
-                  )}
-                </div>
-              </div>
-            );
-          } else {
-            return (
-              <div key={index} className="form-group">
-                <label>
-                  {field.required && <span style={{ color: "red" }}>*</span>} {field.name}
-                </label>
-                <input
-                  type="text"
-                  className="form-control"
-                  value={editedRecord[id]?.[field.name] || ""}
-                  onChange={(e) => handleEdit(id, field.name, e.target.value)}
-                />
-              </div>
-            );
-          }
+          return (
+            <div key={index} className="form-group">
+              <label>{field.name}</label>
+              <input
+                type="text"
+                className="form-control"
+                value={editedRecord[id]?.[field.name] || ""}
+                onChange={(e) => handleEdit(id, field.name, e.target.value)}
+              />
+            </div>
+          );
         }
         return null;
       })}
@@ -230,18 +147,11 @@ const Edit = () => {
       </button>
 
       {showToast && (
-        <div
-          className="toast-container position-fixed top-20 start-50 translate-middle p-3"
-          style={{ zIndex: 1550 }}
-        >
+        <div className="toast-container position-fixed top-20 start-50 translate-middle p-3" style={{ zIndex: 1550 }}>
           <div className="toast show" role="alert" aria-live="assertive" aria-atomic="true">
             <div className="toast-header">
               <strong className="me-auto">Success</strong>
-              <button
-                type="button"
-                className="btn-close"
-                onClick={() => setShowToast(false)}
-              ></button>
+              <button type="button" className="btn-close" onClick={() => setShowToast(false)}></button>
             </div>
             <div className="toast-body text-success text-center">
               Updated successfully!
